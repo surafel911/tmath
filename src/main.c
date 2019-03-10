@@ -13,7 +13,6 @@ main(int argc, char* argv[])
 			break;
 		}
 
-		puts("");
-		tmath_solve(buffer);
+		printf("%lf\n\n", tmath_solve(buffer));
 	}
 }

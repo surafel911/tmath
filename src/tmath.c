@@ -1,18 +1,25 @@
-#include <tmath/tmath.h>
 
+#include <math.h>
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 
+#define TMATH_AST_INIT {.nodes = NULL, .len = 0}
+
 static const char* _delimiters[] = {
 	"^",
-	"*/",
-	"+-",
+	"*",
+	"/",
+	"+",
+	"-",
 };
 
 enum tmath_op {
+	TMATH_OP_NONE,
 	TMATH_OP_EXP = '^',
 	TMATH_OP_MUL = '*',
 	TMATH_OP_DIV = '/',
@@ -21,58 +28,114 @@ enum tmath_op {
 };
 
 struct tmath_ast_node {
-	const char* lhs, rhs;
-	struct tmath_ast_node* ast;
 	enum tmath_op op;
+	double value;
+};
+
+struct tmath_ast {
+	struct tmath_ast_node* nodes;
+	size_t len;
 };
 
 static bool
-tmath_has_op(const char* exp)
+tmath_is_num(const char* exp)
 {
-	for (const char* c = exp; c != '\0'; c++) {
-		switch (*c) {
-		case TMATH_OP_EXP:
-		case TMATH_OP_MUL:
-		case TMATH_OP_DIV:
-		case TMATH_OP_ADD:
-		case TMATH_OP_SUB:
-			return true;
+	for (; *exp != '\0'; exp++) {
+		if (*exp == '.') {
+			continue;
+		}
+
+		if (!isdigit(*exp)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
+tmath_has_op(const char* exp, int index)
+{
+	for (; *exp != '\0'; exp++) {
+		for (int i = index; i < ARRAY_SIZE(_delimiters); i++) {
+			if (*exp == *_delimiters[i]) {
+				return true;
+			}
 		}
 	}
 
 	return false;
 }
 
-static struct tmath_ast_node*
-tmath_parse(const char* exp)
+static void
+tmath_ast_node_add(struct tmath_ast* ast)
+{
+	ast->nodes = realloc(ast->nodes, sizeof(*(ast->nodes)));
+	ast->len++;
+}
+
+static void
+tmath_parse(struct tmath_ast* ast, const char* exp)
 {
 	char* tok;
 	const char* op;
-	struct tmath_ast_node* ast = NULL;
 
-	// TODO: strtok likely replaces delimiters with '\0'. Find a way around that
+	if (tmath_is_num(exp)) {
+		tmath_ast_node_add(ast);
+
+		ast->nodes[0].op = TMATH_OP_NONE;
+		sscanf(exp, "%lf", &ast->nodes[0].value);
+
+		return;
+	}
 
 	for (int i = 0; i < ARRAY_SIZE(_delimiters); i++) {
 		op = _delimiters[i];
 		tok = strtok((char*)exp, op);
 
-		tmath_has_op("");
-
-		while (tok != NULL) {
-			printf("%s: %s\n", op, tok);
-			tok = strtok(NULL, op);
+		if (tmath_has_op(exp, i)) {
+			// TODO: Only find number in expression
+		} else {
+			//TODO: Add number to AST.
 		}
 	}
-
-	return ast;
 }
 
 double
 tmath_solve(const char* exp)
 {
-	struct tmath_ast_node* ast;
+	struct tmath_ast ast = TMATH_AST_INIT;
+	double value = 0.0;
 
-	ast = tmath_parse(exp);
+	tmath_parse(&ast, exp);
 
-	return 0.0;
+	value = ast.nodes[0].value;
+
+	for (int i = 1; i < ast.len; i++) {
+		switch (ast.nodes[i].op) {
+		case TMATH_OP_EXP:
+			value = pow(value, ast.nodes[i].value);
+			break;
+		case TMATH_OP_MUL:
+			value *= ast.nodes[i].value;
+			break;
+		case TMATH_OP_DIV:
+			value /= ast.nodes[i].value;
+			break;
+		case TMATH_OP_ADD:
+			value += ast.nodes[i].value;
+			break;
+		case TMATH_OP_SUB:
+			value -= ast.nodes[i].value;
+			break;
+		default:
+			puts("Invalid op.");
+			abort();
+			break;
+		}
+	}
+
+	free(ast.nodes);
+
+	return value;
 }
