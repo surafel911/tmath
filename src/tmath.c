@@ -1,3 +1,4 @@
+#include <tmath/tmath.h>
 
 #include <math.h>
 #include <ctype.h>
@@ -16,25 +17,6 @@ static const char* _delimiters[] = {
 	"/",
 	"+",
 	"-",
-};
-
-enum tmath_op {
-	TMATH_OP_NONE,
-	TMATH_OP_EXP = '^',
-	TMATH_OP_MUL = '*',
-	TMATH_OP_DIV = '/',
-	TMATH_OP_ADD = '+',
-	TMATH_OP_SUB = '-',
-};
-
-struct tmath_ast_node {
-	enum tmath_op op;
-	double value;
-};
-
-struct tmath_ast {
-	struct tmath_ast_node* nodes;
-	size_t len;
 };
 
 static bool
@@ -74,7 +56,7 @@ tmath_ast_node_add(struct tmath_ast* ast)
 	ast->len++;
 }
 
-static void
+void
 tmath_parse(struct tmath_ast* ast, const char* exp)
 {
 	char* tok;
@@ -134,8 +116,6 @@ tmath_solve(const char* exp)
 			break;
 		}
 	}
-
-	free(ast.nodes);
 
 	return value;
 }
