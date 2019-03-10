@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#define TMATH_AST_INIT {.nodes = NULL, .len = 0, .allocated = 0}
+
 enum tmath_op {
 	TMATH_OP_NONE,
 	TMATH_OP_EXP = '^',
@@ -22,10 +24,10 @@ struct tmath_ast {
 	size_t len, allocated;
 };
 
-void
+int
 tmath_parse(struct tmath_ast* ast, const char* exp);
 
 double
-tmath_solve(const char* exp);
+tmath_solve(struct tmath_ast* ast);
 
 #endif // TMATH_H

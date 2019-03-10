@@ -9,8 +9,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 
-#define TMATH_AST_INIT {.nodes = NULL, .len = 0}
-
 static const char* _delimiters[] = {
 	"^",
 	"*",
@@ -52,11 +50,16 @@ tmath_has_op(const char* exp, int index)
 static void
 tmath_ast_node_add(struct tmath_ast* ast)
 {
-	ast->nodes = realloc(ast->nodes, sizeof(*(ast->nodes)));
-	ast->len++;
+	if (ast->len < ast->allocated) {
+		ast->len++;
+	} else {
+		ast->len++;
+		ast->allocated++;
+		ast->nodes = realloc(ast->nodes, sizeof(*(ast->nodes)) * ast->allocated);
+	}
 }
 
-void
+int
 tmath_parse(struct tmath_ast* ast, const char* exp)
 {
 	char* tok;
@@ -68,7 +71,11 @@ tmath_parse(struct tmath_ast* ast, const char* exp)
 		ast->nodes[0].op = TMATH_OP_NONE;
 		sscanf(exp, "%lf", &ast->nodes[0].value);
 
-		return;
+		return 0;
+	}
+
+	if (!tmath_has_op(exp, 0)) {
+		return -1;
 	}
 
 	for (int i = 0; i < ARRAY_SIZE(_delimiters); i++) {
@@ -81,39 +88,36 @@ tmath_parse(struct tmath_ast* ast, const char* exp)
 			//TODO: Add number to AST.
 		}
 	}
+
+	return 0;
 }
 
 double
-tmath_solve(const char* exp)
+tmath_solve(struct tmath_ast* ast)
 {
-	struct tmath_ast ast = TMATH_AST_INIT;
 	double value = 0.0;
 
-	tmath_parse(&ast, exp);
+	value = ast->nodes[0].value;
 
-	value = ast.nodes[0].value;
-
-	for (int i = 1; i < ast.len; i++) {
-		switch (ast.nodes[i].op) {
+	for (int i = 1; i < ast->len; i++) {
+		switch (ast->nodes[i].op) {
 		case TMATH_OP_EXP:
-			value = pow(value, ast.nodes[i].value);
+			value = pow(value, ast->nodes[i].value);
 			break;
 		case TMATH_OP_MUL:
-			value *= ast.nodes[i].value;
+			value *= ast->nodes[i].value;
 			break;
 		case TMATH_OP_DIV:
-			value /= ast.nodes[i].value;
+			value /= ast->nodes[i].value;
 			break;
 		case TMATH_OP_ADD:
-			value += ast.nodes[i].value;
+			value += ast->nodes[i].value;
 			break;
 		case TMATH_OP_SUB:
-			value -= ast.nodes[i].value;
+			value -= ast->nodes[i].value;
 			break;
 		default:
-			puts("Invalid op.");
-			abort();
-			break;
+			break;	
 		}
 	}
 
