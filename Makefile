@@ -3,7 +3,7 @@ CFLAGS = -m64 -Wall -Werror -std=c99
 BINARY = tmath
 INCDIR = -I include/ -I /usr/include/
 LIBDIR = -L /usr/lib/
-LIBRARIES = 
+LIBRARIES = -lm
 TESTS = 
 SOURCES = src/*.c
 
