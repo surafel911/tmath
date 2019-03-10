@@ -1,22 +1,31 @@
 CC = clang
 CFLAGS = -m64 -Wall -Werror -std=c99
 BINARY = tmath
+LIBBINARY = libtmath
 INCDIR = -I include/ -I /usr/include/
 LIBDIR = -L /usr/lib/
 LIBRARIES = -lm
-TESTS = 
+TESTS = test/*.c
 SOURCES = src/*.c
 
 ifeq ($(OS),Windows_NT)
- BINARY += .exe
+ BINARY =  $(strip $(BINARY)).exe
+ LIBBINARY := $(strip $(LIBBINARY)).dll
+else
+ LIBBINARY := $(strip $(LIBBINARY)).so
 endif
 
 all: debug
 
 debug:
 	$(CC) -g $(CFLAGS) $(INCDIR) $(LIBDIR) $(SOURCES) $(LIBRARIES) \
-		-o bin/$(BINARY)
+		$(TESTS) -o bin/$(BINARY)
 
 release:
-	$(CC) -O3 $(CFLAGS) $(INCDIR) $(LIBDIR) $(SOURCES) $(LIBRARIES) \
-		-o bin/$(BINARY)
+	$(CC) -O3 --shared $(CFLAGS) $(INCDIR) $(LIBDIR) $(SOURCES) $(LIBRARIES) \
+		-o bin/$(LIBBINARY)
+
+ifneq ($(OS),Windows_NT)
+install: release
+	$(shell sudo mv bin/$(LIBBINARY).* /usr/lib/)
+endif
