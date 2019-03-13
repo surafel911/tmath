@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include <tmath/tmath.h>
 
@@ -6,10 +7,13 @@ int
 main(int argc, char* argv[])
 {
 	char buffer[512];
-	struct tmath_ast ast = TMATH_AST_INIT;
+	struct tmath_ast ast;
+
+	tmath_ast_init(&ast);
 
 	while(1) {
-		scanf("%s", buffer);
+		fgets(buffer, sizeof(buffer), stdin);
+		*strchr(buffer, '\n') = '\0';
 
 		if (*buffer == 'q') {
 			break;
@@ -22,4 +26,6 @@ main(int argc, char* argv[])
 
 		printf("%lf\n\n", tmath_solve(&ast));
 	}
+
+	tmath_ast_cleanup(&ast);
 }
