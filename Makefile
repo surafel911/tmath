@@ -9,7 +9,7 @@ TESTS = test/*.c
 SOURCES = src/*.c
 
 ifeq ($(OS),Windows_NT)
- BINARY =  $(strip $(BINARY)).exe
+ BINARY := $(strip $(BINARY)).exe
  LIBBINARY := $(strip $(LIBBINARY)).dll
 else
  LIBBINARY := $(strip $(LIBBINARY)).so
