@@ -12,13 +12,10 @@ enum tmath_op {
 	TMATH_OP_SUB = '-',
 };
 
-struct tmath_ast_node {
-	enum tmath_op op;
-	double value;
-};
 
 struct tmath_ast {
-	struct tmath_ast_node* nodes;
+	double* values;
+	enum tmath_op* ops;
 	size_t len, allocated;
 };
 
