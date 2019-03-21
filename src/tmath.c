@@ -7,7 +7,25 @@
 #include <string.h>
 #include <stdbool.h>
 
-static const char* _delimiters = "^*/+-";
+#define ARRAY_SIZE(x)	(sizeof(x)/sizeof(*x))
+
+static const char* _operators = "^*/+-";
+
+static bool
+tmath_is_num(const char* expr)
+{
+	for (; *expr != '\0'; expr++) {
+		if (*expr == '.') {
+			continue;
+		}
+
+		if (!isdigit(*expr)) {
+			return false;
+		}
+	}
+
+	return true;
+}
 
 static bool
 tmath_is_op(char c)
@@ -25,27 +43,11 @@ tmath_is_op(char c)
 }
 
 static bool
-tmath_is_num(const char* exp)
+tmath_has_op(const char* expr)
 {
-	for (; *exp != '\0'; exp++) {
-		if (*exp == '.') {
-			continue;
-		}
-
-		if (!isdigit(*exp)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool
-tmath_has_op(const char* exp, int index)
-{
-	for (; *exp != '\0'; exp++) {
-		for (char* op = (char*)_delimiters + index; *op != '\0'; op++) {
-			if (*exp == *op) {
+	for (; *expr != '\0'; expr++) {
+		for (const char* op = _operators; *op != '\0'; op++) {
+			if (*expr == *op) {
 				return true;
 			}
 		}
@@ -54,31 +56,63 @@ tmath_has_op(const char* exp, int index)
 	return false;
 }
 
-static char*
-tmath_find_expr(const char* expr, char* pos)
+static const char*
+tmath_next_op(const char* expr)
 {
-	// TODO: Issue with logic (not stopping after finding op).
-	for (pos--; (pos != expr && !tmath_is_op(*pos)) || *pos == '.'; pos--);
+	for (; *expr != '\0' && !tmath_is_op(*expr); ++expr);
 
-	return pos;
+	return expr;
 }
 
 static void
-tmath_ast_node_add(struct tmath_ast* ast)
+tmath_ast_add(struct tmath_ast* ast)
 {
 	if (ast->len < ast->allocated) {
 		ast->len++;
 	} else {
 		ast->len++;
 		ast->allocated++;
-		ast->nodes = realloc(ast->nodes, sizeof(*(ast->nodes)) * ast->allocated);
+		ast->ops = realloc(ast->ops, sizeof(*ast->ops) * ast->allocated);
+		ast->values = realloc(ast->values, sizeof(*ast->values) * ast->allocated);
+
+		*(ast->ops + ast->len - 1) = TMATH_OP_NONE;
+		*(ast->values + ast->len - 1) = 0.0;
+	}
+}
+
+static void
+tmath_ast_solve(struct tmath_ast* ast, int index)
+{
+	double x, y;
+
+	x = ast->values[index];
+	y = ast->values[index + 1];
+	switch (ast->ops[index]) {
+	case TMATH_OP_EXP:
+		ast->values[index] = pow(x, y);
+		break;
+	case TMATH_OP_MUL:
+		ast->values[index] = x * y;
+		break;
+	case TMATH_OP_DIV:
+		ast->values[index] = x / y;
+		break;
+	case TMATH_OP_ADD:
+		ast->values[index] = x + y;
+		break;
+	case TMATH_OP_SUB:
+		ast->values[index] = x - y;
+		break;
+	default:
+		break;
 	}
 }
 
 void
 tmath_ast_init(struct tmath_ast* ast)
 {
-	ast->nodes = NULL;
+	ast->ops = NULL;
+	ast->values = NULL;
 	ast->len = 0;
 	ast->allocated = 0;
 }
@@ -86,7 +120,10 @@ tmath_ast_init(struct tmath_ast* ast)
 void
 tmath_ast_cleanup(struct tmath_ast* ast)
 {
-	free(ast->nodes);
+	free(ast->ops);
+	free(ast->values);
+	ast->ops = NULL;
+	ast->values = NULL;
 	ast->len = 0;
 	ast->allocated = 0;
 }
@@ -94,57 +131,43 @@ tmath_ast_cleanup(struct tmath_ast* ast)
 int
 tmath_parse(struct tmath_ast* ast, const char* expr)
 {
-	char* tok;
-	struct tmath_ast_node* node;
-	char op;
-	size_t len;
+	double* value;
+	enum tmath_op* op;
 
 	ast->len = 0;
 
 	if (tmath_is_num(expr)) {
-		tmath_ast_node_add(ast);
-		ast->len++;
-		node = ast->nodes;
+		tmath_ast_add(ast);
+		op = ast->ops;
+		value = ast->values;
 
-		node->op = TMATH_OP_NONE;
-		sscanf(expr, "%lf", &node->value);
+		*op = TMATH_OP_NONE;
+		sscanf(expr, "%lf", value);
 
 		return 0;
 	}
 
-	if (!tmath_has_op(expr, 0)) {
+	if (!tmath_has_op(expr)) {
 		return -1;
 	}
 
-	len = strlen(_delimiters);
-	for (int i = 0; i < len; i++) {
-		op = _delimiters[i];
+	while (true) {
+		tmath_ast_add(ast);
+		op = (ast->ops + ast->len - 1);
+		value = (ast->values + ast->len - 1);
 
-		tok = strchr(expr, op);
-		while (tok != NULL) {
-			tok = tmath_find_expr(expr, tok);
-			tmath_ast_node_add(ast);
-			node = ast->nodes + (ast->len - 1);
+		sscanf(expr, "%lf", value);
 
-			sscanf(tok, "%lf", &node->value);
+		expr = tmath_next_op(expr);
 
-			if (ast->len - 1 > 0) {
-				node->op = (enum tmath_op)op;
-			} else {
-				node->op = TMATH_OP_NONE;			
-
-				tmath_ast_node_add(ast);
-				node = ast->nodes + (ast->len - 1);
-
-				tok = strchr(tok, op);
-				sscanf(++tok, "%lf", &node->value);
-				node->op = (enum tmath_op)op;
-			}
-			
-			tok = strchr(tok, op);
+		if (*expr != '\0') {
+			*op = (enum tmath_op)(*expr);
+			++expr;
+		} else {
+			*op = TMATH_OP_NONE;
+			break;
 		}
 	}
-
 
 	return 0;
 }
@@ -152,33 +175,19 @@ tmath_parse(struct tmath_ast* ast, const char* expr)
 double
 tmath_solve(struct tmath_ast* ast)
 {
-	double value = 0.0;
-/*
-	value = ast->nodes[0].value;
+	for (int i = 0; i < ARRAY_SIZE(_operators); i++) {
+		for (int j = 0; j < ast->len - 1; j++) {
+			if (ast->ops[j] == _operators[i]) {
+				tmath_ast_solve(ast, j);
 
-	for (int i = 1; i < ast->len; i++) {
-		switch (ast->nodes[i].op) {
-		case TMATH_OP_EXP:
-			value = pow(value, ast->nodes[i].value);
-			break;
-		case TMATH_OP_MUL:
-			value *= ast->nodes[i].value;
-			break;
-		case TMATH_OP_DIV:
-			value /= ast->nodes[i].value;
-			break;
-		case TMATH_OP_ADD:
-			value += ast->nodes[i].value;
-			break;
-		case TMATH_OP_SUB:
-			value -= ast->nodes[i].value;
-			break;
-		default:
-			break;	
+				memmove(ast->ops + j, ast->ops + j + 1, sizeof(*ast->ops) * (ast->len - j - 1));
+				memmove(ast->values + j + 1, ast->values + j + 2, sizeof(*ast->values) * (ast->len - j - 2));
+
+				j = 0;
+				ast->len -= 1;
+			}
 		}
 	}
-*/
 
-
-	return value;
+	return *ast->values;
 }
