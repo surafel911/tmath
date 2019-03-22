@@ -1,5 +1,5 @@
-#ifndef TMATH_H
-#define TMATH_H
+#ifndef TMATH_TMATH_H
+#define TMATH_TMATH_H
 
 #include <stddef.h>
 
@@ -31,4 +31,4 @@ tmath_parse(struct tmath_ast* ast, const char* expr);
 double
 tmath_solve(struct tmath_ast* ast);
 
-#endif // TMATH_H
+#endif // TMATH_TMATH_H

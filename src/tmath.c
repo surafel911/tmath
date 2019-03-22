@@ -1,62 +1,26 @@
 #include <tmath/tmath.h>
 
-#include <math.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define ARRAY_SIZE(x)	(sizeof(x)/sizeof(*x))
+#include <tmath/algebra.h>
+#include <tmath/tmath_i.h>
 
-static const char* _operators = "^*/+-";
-
-static bool
-tmath_is_num(const char* expr)
-{
-	for (; *expr != '\0'; expr++) {
-		if (*expr == '.') {
-			continue;
-		}
-
-		if (!isdigit(*expr)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool
-tmath_is_op(char c)
-{
-	switch (c) {
-	case TMATH_OP_EXP:
-	case TMATH_OP_MUL:
-	case TMATH_OP_DIV:
-	case TMATH_OP_ADD:
-	case TMATH_OP_SUB:
-		return true;
-	}
-
-	return false;
-}
-
-static bool
+static inline bool
 tmath_has_op(const char* expr)
 {
 	for (; *expr != '\0'; expr++) {
-		for (const char* op = _operators; *op != '\0'; op++) {
-			if (*expr == *op) {
-				return true;
-			}
+		if (tmath_is_op(*expr)) {
+			return true;
 		}
 	}
 
 	return false;
 }
 
-static const char*
+static inline const char*
 tmath_next_op(const char* expr)
 {
 	for (; *expr != '\0' && !tmath_is_op(*expr); ++expr);
@@ -64,7 +28,7 @@ tmath_next_op(const char* expr)
 	return expr;
 }
 
-static void
+static inline void
 tmath_ast_add(struct tmath_ast* ast)
 {
 	if (ast->len < ast->allocated) {
@@ -77,34 +41,6 @@ tmath_ast_add(struct tmath_ast* ast)
 
 		*(ast->ops + ast->len - 1) = TMATH_OP_NONE;
 		*(ast->values + ast->len - 1) = 0.0;
-	}
-}
-
-static void
-tmath_ast_solve(struct tmath_ast* ast, int index)
-{
-	double x, y;
-
-	x = ast->values[index];
-	y = ast->values[index + 1];
-	switch (ast->ops[index]) {
-	case TMATH_OP_EXP:
-		ast->values[index] = pow(x, y);
-		break;
-	case TMATH_OP_MUL:
-		ast->values[index] = x * y;
-		break;
-	case TMATH_OP_DIV:
-		ast->values[index] = x / y;
-		break;
-	case TMATH_OP_ADD:
-		ast->values[index] = x + y;
-		break;
-	case TMATH_OP_SUB:
-		ast->values[index] = x - y;
-		break;
-	default:
-		break;
 	}
 }
 
@@ -175,19 +111,7 @@ tmath_parse(struct tmath_ast* ast, const char* expr)
 double
 tmath_solve(struct tmath_ast* ast)
 {
-	for (int i = 0; i < ARRAY_SIZE(_operators); i++) {
-		for (int j = 0; j < ast->len - 1; j++) {
-			if (ast->ops[j] == _operators[i]) {
-				tmath_ast_solve(ast, j);
-
-				memmove(ast->ops + j, ast->ops + j + 1, sizeof(*ast->ops) * (ast->len - j - 1));
-				memmove(ast->values + j + 1, ast->values + j + 2, sizeof(*ast->values) * (ast->len - j - 2));
-
-				j = 0;
-				ast->len -= 1;
-			}
-		}
-	}
-
+	tmath_algebra_solve(ast);	
+	
 	return *ast->values;
 }
