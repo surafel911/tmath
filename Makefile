@@ -2,7 +2,7 @@ CC =
 CFLAGS = -m64 -Wall -Werror -std=c99
 BINARY = tmath
 LIBBINARY = libtmath
-INCDIR = 
+INCDIR = -I include/ 
 LIBDIR = 
 LIBRARIES = -lm
 TESTS = test/*.c
@@ -15,8 +15,8 @@ ifeq ($(OS),Windows_NT)
 else
  CC := clang
  LIBBINARY := $(strip $(LIBBINARY)).so
- INCDIR := -I include/ -I /usr/include/
- LIBDIR := -L /usr/lib/
+ INCDIR += -I /usr/include/
+ LIBDIR += -L /usr/lib/
 endif
 
 all: debug
